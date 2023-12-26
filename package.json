@@ -1,0 +1,50 @@
+{
+   "name": "maraj-react",
+   "version": "0.0.0",
+   "description": "Maraj React Zustand Wrapper and Maraj React Forms.",
+   "keywords": [
+      "maraj",
+      "zustand",
+      "forms"
+   ],
+   "author": "Lukasz Maraj",
+   "license": "MIT",
+   "private": false,
+   "main": "dist/index.js",
+   "module": "dist/index.mjs",
+   "types": "dist/index.d.ts",
+   "files": [
+      "dist",
+      "README.md",
+      "LICENSE"
+   ],
+   "scripts": {
+      "dev": "vitest",
+      "test": "vitest run",
+      "build": "tsup src/index.ts --minify --format cjs,esm --dts",
+      "lint": "tsc",
+      "ci": "npm run lint && npm run test && npm run build",
+      "release": "npm run lint && npm run test && npm run build && changeset publish"
+   },
+   "repository": {
+      "type": "git",
+      "url": "git+https://github.com/Lukasz17git/maraj-react.git"
+   },
+   "bugs": {
+      "url": "https://github.com/Lukasz17git/maraj-react/issues"
+   },
+   "homepage": "https://github.com/Lukasz17git/maraj-react#readme",
+   "devDependencies": {
+      "@changesets/cli": "^2.27.1",
+      "@types/react": "^18.2.45",
+      "tsup": "^8.0.1",
+      "typescript": "^5.3.3",
+      "vitest": "^1.1.0"
+   },
+   "dependencies": {
+      "maraj": "^2.5.1",
+      "react": "^18.2.0",
+      "react-fast-compare": "^3.2.2",
+      "zustand": "^4.4.7"
+   }
+}
