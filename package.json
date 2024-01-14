@@ -1,7 +1,7 @@
 {
    "name": "maraj-react",
    "version": "0.0.0",
-   "description": "Maraj React Zustand Wrapper and Maraj React Forms.",
+   "description": "Maraj React; performant, lightweight forms in react and a Zustand Store Wrapper.",
    "keywords": [
       "maraj",
       "zustand",
