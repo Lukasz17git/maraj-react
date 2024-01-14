@@ -1,15 +1,13 @@
-import { ChangeEventHandler, FocusEventHandler, useContext } from "react"
+import { ChangeEventHandler, FocusEventHandler, MouseEventHandler, useContext } from "react"
 import { FieldContext } from "../context"
-import { defaultModifier } from "./modifiers"
-import { FieldError } from "../useForm"
+import { getDefaultModifiers } from "./modifiers"
+import { FieldStatus } from "../useForm"
+import { strict } from "maraj"
 
-type OnChangeHandler = ChangeEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> | undefined
-type OnBlurHandler = FocusEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> | undefined
+export type ValidTypesAsInputValue = string | number | undefined | readonly string[]
 
 type ReturnTypeWithoutContext = {
    controllerProps: {
-      onChange: OnChangeHandler,
-      onBlur: OnBlurHandler,
       value?: undefined,
       id?: undefined,
       name?: undefined,
@@ -19,59 +17,117 @@ type ReturnTypeWithoutContext = {
    descriptionId?: undefined,
    messageId?: undefined,
    error?: undefined,
+   status?: undefined
 }
 
 type ReturnTypeWithContext = {
    controllerProps: {
-      onChange: OnChangeHandler,
-      onBlur: OnBlurHandler,
-      value: string,
+      value: ValidTypesAsInputValue,
       id: string,
       name: string,
-      "aria-invalid"?: boolean,
-      "aria-describedby"?: string,
-   }, //checked?: boolean
+      "aria-invalid": boolean,
+      "aria-describedby": string,
+   },
    descriptionId: string,
    messageId: string,
    error: string | undefined,
+   status: FieldStatus | undefined
 }
 
-type UseFieldController = (onChange: OnChangeHandler, onBlur: OnBlurHandler) => ReturnTypeWithoutContext | ReturnTypeWithContext
+type OnChangeHandler = ChangeEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> | undefined
+type OnBlurHandler = FocusEventHandler<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> | undefined
+
+type ReturnControllerTypeWithoutContext = ReturnTypeWithoutContext & { controllerProps: { onChange: OnChangeHandler, onBlur: OnBlurHandler } }
+type ReturnControllerTypeWithContext = ReturnTypeWithContext & { controllerProps: { onChange: OnChangeHandler, onBlur: OnBlurHandler } }
+
+type UseFieldController = (onChange: OnChangeHandler, onBlur: OnBlurHandler) => ReturnControllerTypeWithoutContext | ReturnControllerTypeWithContext
 
 export const useFieldController: UseFieldController = (onChange, onBlur) => {
 
    const fieldContext = useContext(FieldContext)
    if (!fieldContext) return { controllerProps: { onChange, onBlur } }
 
-   const { fieldPath, control, fieldData: { name, fieldId, descriptionId, messageId } } = fieldContext
-   const _value = control.useValuesStoreViaPath(fieldPath)
-   const error = control.useErrorsStore(s => s[fieldPath])
-
-   const { getModifier, setModifier } = defaultModifier[typeof _value]
+   const { fieldPath, valuesStore, errorsStore, statusStore, fieldData: { name, fieldId, descriptionId, messageId } } = fieldContext
+   const _value = valuesStore.useValuesStoreViaPath(fieldPath)
+   const error = errorsStore.useErrorsStoreViaPath(fieldPath)
+   const status = statusStore.useStatusStoreViaPath(fieldPath)
+   const { getModifier, setModifier } = getDefaultModifiers(_value)
 
    const _onChange: OnChangeHandler = (e) => {
       if (onChange) onChange(e)
-      control.updateValuesStoreViaPath(fieldPath, setModifier(e.target.value))
+      valuesStore.handlers.updateStateViaPath(fieldPath, setModifier(e.target.value))
+      if (status?.isDirty || status?.isDirty === undefined) {
+         statusStore.handlers.updateStateViaPath(fieldPath, v => strict({ ...v, isDirty: false }))
+      }
    }
 
    const _onBlur: OnBlurHandler = (e) => {
       if (onBlur) onBlur(e)
+      if (status?.isDirty) {
+         valuesStore.handlers.updateStateViaPath(fieldPath, setModifier(e.target.value))
+      } else if (status?.isDirty === false) {
+         statusStore.handlers.updateStateViaPath(fieldPath, v => strict({ ...v, isDirty: true }))
+      }
    }
-
-   const value: string | any = getModifier(_value)
-   const ariaInvalid = !!error
-   const ariaDescribedBy = error ? `${descriptionId} ${messageId}` : descriptionId
 
    return {
       controllerProps: {
          onChange: _onChange,
          onBlur: _onBlur,
-         value,
+         value: getModifier(_value) ?? '',
          id: fieldId,
          name,
-         "aria-invalid": ariaInvalid,
-         "aria-describedby": ariaDescribedBy
+         "aria-invalid": !!error,
+         "aria-describedby": error ? `${descriptionId} ${messageId}` : descriptionId
       },
+      status,
+      error,
+      descriptionId,
+      messageId,
+   }
+}
+
+type OnClickHandler = MouseEventHandler<HTMLButtonElement> | undefined
+type StringBoolean = 'true' | 'false'
+
+type ReturnClickControllerTypeWithoutContext = ReturnTypeWithoutContext & { controllerProps: { onClick: OnClickHandler, checked?: undefined, 'aria-checked'?: undefined, 'aria-pressed'?: undefined } }
+type ReturnClickControllerTypeWithContext = ReturnTypeWithContext & { controllerProps: { onClick: OnClickHandler, checked: StringBoolean, 'aria-checked': StringBoolean, 'aria-pressed': StringBoolean } }
+
+type UseFieldClickController = (onClick: OnClickHandler) => ReturnClickControllerTypeWithoutContext | ReturnClickControllerTypeWithContext
+
+export const useFieldClickController: UseFieldClickController = (onClick) => {
+
+   const fieldContext = useContext(FieldContext)
+   if (!fieldContext) return { controllerProps: { onClick } }
+
+   const { fieldPath, valuesStore, errorsStore, statusStore, fieldData: { name, fieldId, descriptionId, messageId } } = fieldContext
+   const _value = valuesStore.useValuesStoreViaPath(fieldPath)
+   const error = errorsStore.useErrorsStoreViaPath(fieldPath)
+   const status = statusStore.useStatusStoreViaPath(fieldPath)
+   const { getModifier, setModifier } = getDefaultModifiers(_value)
+
+   const _onClick: OnClickHandler = (e) => {
+      if (onClick) onClick(e)
+      console.log('on change fired')
+      valuesStore.handlers.updateStateViaPath(fieldPath, setModifier(''))
+      if (!status?.isDirty) {
+         statusStore.handlers.updateStateViaPath(fieldPath, v => strict({ ...v, isDirty: true }))
+      }
+   }
+
+   return {
+      controllerProps: {
+         onClick: _onClick,
+         value: getModifier(_value) ?? '',
+         id: fieldId,
+         name,
+         "aria-invalid": !!error,
+         "aria-describedby": error ? `${descriptionId} ${messageId}` : descriptionId,
+         checked: (!!_value).toString() as StringBoolean,
+         "aria-checked": (!!_value).toString() as StringBoolean,
+         "aria-pressed": (!!_value).toString() as StringBoolean
+      },
+      status,
       error,
       descriptionId,
       messageId,

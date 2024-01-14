@@ -1,51 +1,52 @@
-import { ObjectSchema, ValiError, parse } from "@/lib/valibot"
-import { FormEvent, useEffect, useRef } from "react"
-import { DotPaths } from "maraj"
-import { valibotErrorsParser } from "./validationParser";
-import { createComponentStore } from "../maraj-react-zustand/_index";
+import { FormEvent, useMemo } from "react"
+import { useCreateComponentStore, useCreateDotPathRecordComponentStore } from "../index"
+import { DotPaths, ObjectLiteral } from "maraj"
+import { DeepPartial, extractChangedFields } from "./extractChangedFields";
 
-export type FieldError = string
-export type ErrorStore<T> = { [K in DotPaths<T> & string]?: FieldError }
-export type Control<T extends object> = ReturnType<typeof useForm<T>>['control']
+/* Subscribe Functions to listen on values changes */
+export type FormSubscription<T extends ObjectLiteral> = (valuesState: T, formContent: FormContent<T>) => void
 
-export const useForm = <TData extends object>(props: { schema: ObjectSchema<any, any, TData>, defaultValues: TData }) => {
+/* Status Store */
+export type FieldStatus = { isDirty?: boolean, changedValue?: boolean }
+type FormStatusStore<T> = { [K in DotPaths<T>]?: FieldStatus }
 
-   const { schema, defaultValues } = props
-   const errorStore: ErrorStore<TData> = {}
+/* Errors Store */
+export type FormErrorStore<T> = { [K in DotPaths<T>]?: string }
 
-   const { current: valuesStore } = useRef(createComponentStore('Values', defaultValues))
-   const { current: errorsStore } = useRef(createComponentStore('Errors', errorStore))
-   const { current: { resetForm, handleSubmit, ...control } } = useRef({
-      useValuesStore: valuesStore.useValuesStore,
-      useValuesStoreViaPath: valuesStore.useValuesStoreViaPath,
-      updateValuesStore: valuesStore.updateValuesStore,
-      updateValuesStoreViaPath: valuesStore.updateValuesStoreViaPath,
-      useErrorsStore: errorsStore.useErrorsStore,
-      resetForm: () => valuesStore.updateValuesStore(() => defaultValues),
-      handleSubmit: (handler: (values: TData, changedValues: TODO ) => void) => (e: FormEvent<HTMLFormElement>) => {
+/* Form Content */
+export type FormContent<T extends ObjectLiteral> = ReturnType<typeof useForm<T>>['formContent']
+
+/* Form Props */
+type Props<T extends ObjectLiteral> = { subscribe?: FormSubscription<T> | FormSubscription<T>[], defaultValues: T }
+export const useForm = <TState extends ObjectLiteral>({ subscribe, defaultValues }: Props<TState>) => {
+
+   const content = useMemo((() => {
+      const valuesStore = useCreateComponentStore('Values', defaultValues)
+      const errorsStore = useCreateDotPathRecordComponentStore('Errors', {} as FormErrorStore<TState>)
+      const statusStore = useCreateDotPathRecordComponentStore('Status', {} as FormStatusStore<TState>)
+      const formContent = { valuesStore, errorsStore, statusStore }
+      const resetForm = () => valuesStore.handlers.setState(() => defaultValues)
+
+      const submitHandler = (handler: (values: TState, changedValues: DeepPartial<TState>, formEvent: FormEvent<HTMLFormElement>) => void) => (e: FormEvent<HTMLFormElement>) => {
          e.preventDefault()
-         const state = valuesStore.rootValuesStore.getState()
-         const changes = TODO
-         handler(state, changes)
+         const state = valuesStore.handlers.getState()
+         const changes = extractChangedFields(defaultValues, state)
+         handler(state, changes, e)
       }
-   })
+      const useIsFormValid = () => errorsStore.useErrorsStore(state => !Object.keys(state).length)
 
-   useEffect(() => {
-      valuesStore.rootValuesStore.subscribe((state) => {
-         try {
-            parse(schema, state)
-         } catch (error) {
-            if (error instanceof ValiError) {
-               const newErrorState = valibotErrorsParser<TData>(error)
-               errorsStore.rootErrorsStore.setState(newErrorState)
-            }
-         }
-      })
-   }, [])
+      if (subscribe) {
+         const subscriptions = Array.isArray(subscribe) ? subscribe : [subscribe]
+         subscriptions.forEach(subscription => valuesStore.handlers.subscribe(s => subscription(s, formContent)))
+      }
 
-   return {
-      handleSubmit,
-      resetForm,
-      control,
-   }
+      return {
+         formContent,
+         resetForm,
+         submitHandler,
+         useIsFormValid,
+      }
+   }), [])
+
+   return content
 }

@@ -1,33 +1,39 @@
-
+import { ValidTypesAsInputValue } from "./useFieldController"
 
 type Modifier = {
+   getModifier: (v: any) => ValidTypesAsInputValue
    setModifier: (v: string) => any
-   getModifier: (v: any) => string | number | boolean | undefined | null
 }
 
-const anyModifier = {
-   setModifier: (v: string) => v,
-   getModifier: (v: any) => v
-}
-
-type DefaultModifier = Record<"string" | "number" | "bigint" | "boolean" | "symbol" | "undefined" | "object" | "function", Modifier>
-
-export const defaultModifier: DefaultModifier = {
+const modifiers = {
    string: {
-      setModifier: (v: string) => v,
-      getModifier: (v: string) => v
-   },
-   boolean: {
-      setModifier: () => (v: boolean) => !v,
-      getModifier: (v: boolean) => v
+      getModifier: (v: string) => v,
+      setModifier: (v: string) => v
    },
    number: {
-      setModifier: (v: string) => parseInt(v),
-      getModifier: (v: number) => v.toString()
+      getModifier: (v: number) => v,
+      setModifier: (v: string) => parseFloat(v)
    },
-   bigint: anyModifier,
-   function: anyModifier,
-   object: anyModifier,
-   symbol: anyModifier,
-   undefined: anyModifier,
+   boolean: {
+      getModifier: (v: boolean) => `${v}`,
+      setModifier: () => (valueInStore: boolean) => !valueInStore
+   },
+   undefined: {
+      getModifier: () => '',
+      setModifier: (v: string) => v
+   },
+   null: {
+      getModifier: () => '',
+      setModifier: (v: string) => v
+   },
+} satisfies Record<'string' | 'number' | 'boolean' | 'undefined' | 'null', Modifier>
+
+
+export const getDefaultModifiers = (value: unknown): Modifier => {
+   if (value === undefined) return modifiers.undefined
+   else if (value === null ) return modifiers.null
+   else if (typeof value === 'string') return modifiers.string
+   else if (typeof value === 'number') return modifiers.number
+   else if (typeof value === 'boolean') return modifiers.boolean
+   else throw new Error(`Value inside field is not a primitive: ${JSON.stringify(value)}`)
 }

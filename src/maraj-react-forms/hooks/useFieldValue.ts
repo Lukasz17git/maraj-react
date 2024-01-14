@@ -3,5 +3,5 @@ import { FieldContext } from "../context"
 
 export const useFieldValue = () => {
    const fieldContext = useContext(FieldContext)
-   return fieldContext?.control.useValuesStoreViaPath(fieldContext.fieldPath)
+   return fieldContext?.valuesStore.useValuesStoreViaPath(fieldContext.fieldPath)
 }

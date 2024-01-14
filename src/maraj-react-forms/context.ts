@@ -1,11 +1,9 @@
-import { DotPaths } from "maraj"
-import { Control } from "./useForm"
+import { FormContent } from "./useForm"
 import { createContext } from "react"
 
 type FieldContextValue = undefined | {
-   fieldPath: DotPaths<any>
+   fieldPath: PropertyKey | string
    fieldData: { fieldId: string, descriptionId: string, messageId: string, name: string }
-   control: Control<any>
-}
+} & FormContent<Record<PropertyKey, any>>
 
 export const FieldContext = createContext<FieldContextValue>(undefined)
