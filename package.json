@@ -24,7 +24,7 @@
       "build": "tsup src/index.ts --minify --format cjs,esm --dts",
       "lint": "tsc",
       "ci": "npm run lint && npm run test && npm run build",
-      "release": "npm run lint && npm run test && npm run build && changeset publish"
+      "release": "node scripts/check-changelog.mjs && npm run build && changeset publish"
    },
    "repository": {
       "type": "git",
@@ -35,7 +35,7 @@
    },
    "homepage": "https://github.com/Lukasz17git/maraj-react#readme",
    "devDependencies": {
-      "@changesets/cli": "^2.27.1",
+      "@changesets/cli": "^3.0.3",
       "@types/react": "^18.2.45",
       "tsup": "^8.0.1",
       "typescript": "^5.3.3",
